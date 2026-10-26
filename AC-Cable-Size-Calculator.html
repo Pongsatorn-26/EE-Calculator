@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AC Cable Size Calculator</title>
+<style>
+:root{--bg:#f4f6fa;--card:#fff;--text:#14213d;--muted:#5b6478;--line:#d9dee8;--accent:#e08a00;--accent-text:#1a1200;--ok:#0a7a45;--warn:#b42318;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1624;--card:#18233a;--text:#eef2fa;--muted:#9aa6bd;--line:#2c3a57;--accent:#f5a524;--accent-text:#1a1200;--ok:#4cd391;--warn:#ff8a80;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1624;--card:#18233a;--text:#eef2fa;--muted:#9aa6bd;--line:#2c3a57;--accent:#f5a524;--accent-text:#1a1200;--ok:#4cd391;--warn:#ff8a80;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.5}
+.wrap{max-width:720px;margin:0 auto;padding:32px 16px 48px}
+h1{font-size:clamp(1.6rem,5vw,2.2rem);margin:0 0 6px}
+.sub{color:var(--muted);margin:0 0 20px}
+.formula{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:12px 16px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.95rem;margin-bottom:20px;overflow-x:auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:540px){.grid{grid-template-columns:1fr}}
+label{display:block;font-weight:600;font-size:.9rem;margin-bottom:4px}
+small{display:block;color:var(--muted);font-size:.78rem;margin-top:3px}
+input,select{width:100%;padding:11px 12px;font-size:1rem;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text)}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+.full{grid-column:1/-1}
+button{width:100%;margin-top:20px;padding:14px;font-size:1.05rem;font-weight:700;border:0;border-radius:10px;background:var(--accent);color:var(--accent-text);cursor:pointer}
+button:hover{filter:brightness(1.07)}
+#result{margin-top:20px;display:none;text-align:center}
+.big{font-size:clamp(2.4rem,10vw,3.6rem);font-weight:800;color:var(--ok);line-height:1.1}
+.big span{font-size:1.2rem;font-weight:600}
+.detail{color:var(--muted);margin-top:8px;font-size:.95rem}
+.err{color:var(--warn);font-weight:600}
+.note{color:var(--muted);font-size:.8rem;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>⚡ AC Cable Size Calculator</h1>
+  <p class="sub">Enter your design values, press Calculate, get the cable size in mm². Your selections are remembered on this device.</p>
+  <div class="formula">It = In ÷ (Ca × Cg × N)</div>
+
+  <div class="card">
+    <div class="grid">
+      <div>
+        <label for="in">Design current, In (A)</label>
+        <input id="in" type="number" min="0" step="any" placeholder="e.g. 250" inputmode="decimal">
+      </div>
+      <div>
+        <label for="n">Cables per phase, N</label>
+        <select id="n"></select>
+      </div>
+      <div>
+        <label for="type">Cable type (copper, 3-phase)</label>
+        <select id="type">
+          <option value="xlpe">XLPE / EPR – 90 °C</option>
+          <option value="pvc">PVC – 70 °C</option>
+        </select>
+      </div>
+      <div>
+        <label for="temp">Ambient temperature, Temp.</label>
+        <select id="temp"></select>
+        <small id="caNote"></small>
+      </div>
+      <div>
+        <label for="lay">Laying type</label>
+        <select id="lay"></select>
+      </div>
+      <div>
+        <label for="lad">No. of cable ladders</label>
+        <select id="lad"></select>
+      </div>
+      <div>
+        <label for="cir">No. of circuits</label>
+        <select id="cir"></select>
+        <small id="cgNote"></small>
+      </div>
+    </div>
+    <button id="calc" type="button">Calculate cable size</button>
+
+    <div id="result" aria-live="polite">
+      <div class="detail">Recommended cable size</div>
+      <div class="big" id="size"></div>
+      <div class="detail" id="detail"></div>
+    </div>
+  </div>
+  <p class="note">Ca and Cg are taken from the supplied tables (Ca referenced to 40 °C ambient). Cable rated currents are from the supplied table (referenced to 40 °C ambient, matching Ca); sizes below 25 mm² have no rating data yet and are skipped. Always confirm voltage drop, short-circuit withstand and local code requirements before final selection.</p>
+</div>
+
+<script>
+const sizes=[1,1.5,2.5,4,6,10,16,25,35,50,70,95,120,150,185,240,300,400,500];
+// Cable rated current (A) per supplied table, referenced to 40 °C ambient.
+// null = no data supplied yet (sizes 1 to 16 mm²); those sizes are skipped.
+const _x=null;
+const rating={
+  xlpe:{
+    touching:[_x,_x,_x,_x,_x,_x,_x,128,160,197,254,311,364,422,485,577,670,790,908],
+    trefoil:[_x,_x,_x,_x,_x,_x,_x,123,154,188,244,298,349,404,464,552,640,749,861],
+    spaced:[_x,_x,_x,_x,_x,_x,_x,166,206,250,321,391,455,525,602,711,821,987,1140]
+  },
+  pvc:{
+    touching:[_x,_x,_x,_x,_x,_x,_x,99,124,151,196,239,279,324,371,441,511,599,686],
+    trefoil:[_x,_x,_x,_x,_x,_x,_x,96,119,145,188,230,268,310,356,422,488,571,652],
+    spaced:[_x,_x,_x,_x,_x,_x,_x,127,157,191,244,297,345,397,453,535,617,741,854]
+  }
+};
+const temps=[30,35,40,45,50,55,60,65,70];
+// Ca per supplied table, reference ambient 40 °C. PVC 45 °C entered as 0.91 (source showed 0.1, a typo). 0 = not permitted.
+const caTab={
+  pvc:[1.15,1.08,1.00,0.91,0.82,0.70,0.57,0,0],
+  xlpe:[1.10,1.05,1.00,0.96,0.90,0.84,0.78,0.71,0.64]
+};
+// Cg per supplied table: laying type > no. of cable ladders > first circuit no. and factors
+const cgData={
+  touching:{name:'Touching flat',ladders:{
+    1:{from:1,v:[1,0.91,0.87,0.82,0.78,0.78,0.77,0.77,0.77,0.77]},
+    2:{from:11,v:[0.74,0.74,0.69,0.69]}}},
+  trefoil:{name:'Trefoil',ladders:{
+    1:{from:1,v:[1,0.98,0.96,0.93,0.89,0.89]},
+    2:{from:7,v:[0.85,0.85,0.85,0.80,0.80,0.80]},
+    3:{from:13,v:[0.76,0.76]}}},
+  spaced:{name:'Spaced flat',ladders:{
+    1:{from:1,v:[1,0.93,0.90,0.87,0.83,0.83]},
+    2:{from:7,v:[0.81,0.81,0.81,0.76,0.76,0.76]},
+    3:{from:13,v:[0.72,0.72]}}}
+};
+const $=id=>document.getElementById(id);
+const KEY='acCableCalc.v3';
+
+function fill(sel,opts,keep){
+  sel.innerHTML='';
+  opts.forEach(o=>sel.add(new Option(o[1],o[0])));
+  if(keep!==null&&keep!==undefined&&opts.some(o=>String(o[0])===String(keep)))sel.value=keep;
+}
+function refreshLad(){
+  const L=cgData[$('lay').value].ladders;
+  fill($('lad'),Object.keys(L).map(k=>[k,k+(k==='1'?' ladder':' ladders')]),$('lad').value);
+}
+function refreshCir(){
+  const d=cgData[$('lay').value].ladders[$('lad').value];
+  fill($('cir'),d.v.map((_,i)=>[d.from+i,(d.from+i)+(d.from+i===1?' circuit':' circuits')]),$('cir').value);
+}
+function cg(){
+  const d=cgData[$('lay').value].ladders[$('lad').value];
+  return d.v[+$('cir').value-d.from];
+}
+function factors(){
+  return {Ca:caTab[$('type').value][+$('temp').value],Cg:cg()};
+}
+function updateNotes(){
+  const {Ca,Cg}=factors();
+  $('caNote').textContent='Ca = '+Ca.toFixed(2);
+  $('cgNote').textContent='Cg = '+Cg.toFixed(2);
+}
+
+// build dropdowns
+for(let i=1;i<=6;i++)$('n').add(new Option(i+(i===1?' cable':' cables'),i));
+temps.forEach((t,i)=>$('temp').add(new Option(t+' °C',i)));
+Object.keys(cgData).forEach(k=>$('lay').add(new Option(cgData[k].name,k)));
+$('temp').value=2;
+refreshLad();refreshCir();
+
+// store / restore selections
+const fields=['in','n','type','temp','lay','lad','cir'];
+function save(){
+  try{localStorage.setItem(KEY,JSON.stringify(Object.fromEntries(fields.map(f=>[f,$(f).value]))));}catch(e){}
+}
+function load(){
+  try{
+    const s=JSON.parse(localStorage.getItem(KEY)||'null');
+    if(!s)return;
+    ['in','n','type','temp','lay'].forEach(f=>{if(s[f]!==undefined&&s[f]!==null)$(f).value=s[f];});
+    refreshLad();if(s.lad)$('lad').value=s.lad;
+    refreshCir();if(s.cir)$('cir').value=s.cir;
+  }catch(e){}
+}
+load();updateNotes();
+['n','type','temp'].forEach(f=>$(f).addEventListener('change',()=>{updateNotes();save();}));
+$('lay').addEventListener('change',()=>{refreshLad();refreshCir();updateNotes();save();});
+$('lad').addEventListener('change',()=>{refreshCir();updateNotes();save();});
+$('cir').addEventListener('change',()=>{updateNotes();save();});
+$('in').addEventListener('input',save);
+
+function calc(){
+  const In=parseFloat($('in').value),N=parseInt($('n').value,10);
+  const {Ca,Cg}=factors();
+  const out=$('result'),size=$('size'),det=$('detail');
+  out.style.display='block';
+  if(!(In>0)){
+    size.innerHTML='<span class="err">Please enter the design current</span>';det.textContent='';return;
+  }
+  if(!(Ca>0)){
+    size.innerHTML='<span class="err">Not permitted</span>';
+    det.textContent='Ca = 0: this cable type has no current capacity at '+temps[+$('temp').value]+' °C ambient. Choose XLPE / EPR or a lower temperature.';return;
+  }
+  const It=In/(Ca*Cg*N);
+  const rates=rating[$('type').value][$('lay').value];
+  const i=rates.findIndex(r=>r!==null&&r>=It);
+  if(i<0){
+    size.innerHTML='<span class="err">&gt; 500 <span>mm²</span></span>';
+    det.textContent='Required It = '+It.toFixed(1)+' A per cable. Increase cables per phase (N).';return;
+  }
+  size.innerHTML=sizes[i]+' <span>mm²</span>';
+  det.textContent=N+' × '+sizes[i]+' mm² per phase · required It = '+It.toFixed(1)+' A (cable rated '+rates[i]+' A) · Ca '+Ca.toFixed(2)+', Cg '+Cg.toFixed(2);
+}
+$('calc').addEventListener('click',calc);
+$('in').addEventListener('keydown',ev=>{if(ev.key==='Enter')calc();});
+</script>
+</body>
+</html>

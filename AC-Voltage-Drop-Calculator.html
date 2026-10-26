@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AC Voltage Drop Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&display=swap">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#eef1f3; --panel:#ffffff; --ink:#14232e; --muted:#5b6b77; --line:#cfd8de;
+  --accent:#0b5c7a; --accent-ink:#ffffff; --ok:#17794a; --warn:#b26a00; --bad:#b3261e;
+  --res:#14232e; --res-ink:#f2f6f8; --res-muted:#9fb3c0;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e171d; --panel:#16232b; --ink:#e8eff3; --muted:#92a5b1; --line:#2a3b46;
+    --accent:#4cb8dd; --accent-ink:#06222d; --ok:#4cc38a; --warn:#e8a33d; --bad:#ff7b72;
+    --res:#0a1217; --res-ink:#e8eff3; --res-muted:#7f95a3; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e171d; --panel:#16232b; --ink:#e8eff3; --muted:#92a5b1; --line:#2a3b46;
+  --accent:#4cb8dd; --accent-ink:#06222d; --ok:#4cc38a; --warn:#e8a33d; --bad:#ff7b72;
+  --res:#0a1217; --res-ink:#e8eff3; --res-muted:#7f95a3; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.5}
+main{max-width:920px;margin:0 auto;padding:clamp(20px,5vw,56px) clamp(16px,4vw,32px)}
+h1{font-size:clamp(2rem,6vw,3.4rem);line-height:1.02;font-weight:800;letter-spacing:-.02em;margin:0 0 12px}
+.lead{max-width:56ch;color:var(--muted);margin:0 0 28px;font-size:1.05rem}
+.grid{display:grid;grid-template-columns:1fr;gap:20px}
+@media (min-width:820px){.grid{grid-template-columns:1.05fr 1fr;align-items:start}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px}
+fieldset{border:0;padding:0;margin:0 0 18px}
+legend{font-weight:600;margin-bottom:8px;padding:0}
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid var(--accent);border-radius:8px;overflow:hidden}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{display:block;text-align:center;padding:11px 8px;cursor:pointer;font-weight:600;color:var(--accent)}
+.seg input:checked+label{background:var(--accent);color:var(--accent-ink)}
+.seg input:focus-visible+label{outline:3px solid var(--ink);outline-offset:-3px}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.f{display:flex;flex-direction:column;gap:5px}
+.f label{font-weight:600;font-size:.92rem}
+.f small{color:var(--muted);font-size:.8rem;line-height:1.3}
+.inp{display:flex;border:1.5px solid var(--line);border-radius:8px;background:var(--bg);overflow:hidden}
+.inp:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
+.inp input{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);font:inherit;font-size:1.05rem;padding:10px 10px;outline:0}
+.inp span{padding:10px 10px;color:var(--muted);font-size:.85rem;border-left:1px solid var(--line);white-space:nowrap;display:flex;align-items:center}
+.inp.bad{border-color:var(--bad)}
+.inp select{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);font:inherit;font-size:1.05rem;padding:10px;outline:0;cursor:pointer}
+.inp select option{background:var(--panel);color:var(--ink)}
+.inp select:disabled{color:var(--muted);cursor:not-allowed}
+.full{grid-column:1/-1}
+button{font:inherit;font-weight:800;font-size:1.1rem;width:100%;margin-top:20px;padding:15px;border:0;border-radius:8px;background:var(--accent);color:var(--accent-ink);cursor:pointer}
+button:hover{filter:brightness(1.08)}
+button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.ghost{background:transparent;color:var(--muted);font-weight:600;font-size:.9rem;margin-top:8px;padding:8px}
+.err{color:var(--bad);font-size:.9rem;margin:12px 0 0;min-height:1.2em}
+.out{background:var(--res);color:var(--res-ink);border-radius:10px;padding:22px}
+.out h2{margin:0 0 14px;font-size:1.1rem;font-weight:600;color:var(--res-muted)}
+.results{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#ffffff22;border-radius:8px;overflow:hidden}
+.r{background:var(--res);padding:16px 14px}
+.r:first-child{grid-column:1/-1;padding:6px 14px 18px}
+.r .n{font-size:clamp(1.8rem,5vw,2.5rem);font-weight:800;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+.r:first-child .n{font-size:clamp(2.6rem,9vw,3.6rem)}
+.r .u{font-weight:600;color:var(--res-muted);font-size:.9rem}
+.status{margin-top:16px;padding:12px 14px;border-radius:8px;font-weight:600;border-left:5px solid var(--res-muted);background:#ffffff12}
+.status.ok{border-color:var(--ok)}.status.warn{border-color:var(--warn)}.status.bad{border-color:var(--bad)}
+.eq{margin-top:16px;color:var(--res-muted);font-size:.85rem;overflow-x:auto}
+.eq code{display:block;white-space:nowrap;font-size:.85rem;color:var(--res-ink)}
+.empty{color:var(--res-muted)}
+.note{margin-top:28px;color:var(--muted);font-size:.88rem;max-width:70ch}
+</style>
+</head>
+<body>
+<main>
+  <h1>AC voltage drop calculator</h1>
+  <p class="lead">Enter your circuit details, press Calculate, and get the voltage drop in volts and percent for single-phase or three-phase systems.</p>
+
+  <div class="grid">
+    <section class="panel" aria-label="Inputs">
+      <fieldset>
+        <legend>System</legend>
+        <div class="seg">
+          <input type="radio" name="sys" id="s1" value="1"><label for="s1">1 Phase</label>
+          <input type="radio" name="sys" id="s3" value="3" checked><label for="s3">3 Phase</label>
+        </div>
+      </fieldset>
+
+      <div class="fields">
+        <div class="f"><label for="V">System voltage (V)</label>
+          <div class="inp"><input id="V" type="number" inputmode="decimal" step="any" value="400"><span>V</span></div>
+          <small>Line-to-line for 3 phase</small></div>
+        <div class="f"><label for="I">Load current (I)</label>
+          <div class="inp"><input id="I" type="number" inputmode="decimal" step="any" value="63"><span>A</span></div></div>
+        <div class="f"><label for="SZ">Cable size</label>
+          <div class="inp"><select id="SZ"></select></div></div>
+        <div class="f"><label for="AR">Arrangement</label>
+          <div class="inp"><select id="AR"><option value="0">Space</option><option value="1">Touching</option><option value="2" selected>Trefoil</option></select></div></div>
+        <div class="f full"><small>Data: Thai Yazaki CV-FD 0.6/1 kV. Choose Custom to type your own R and X<sub>L</sub>.</small></div>
+        <div class="f"><label for="R">Resistance (R)</label>
+          <div class="inp"><input id="R" type="number" inputmode="decimal" step="any" value="0.4938"><span>Ω/km</span></div>
+          <small>A.C. resistance, filled from the table</small></div>
+        <div class="f"><label for="X">Reactance (X<sub>L</sub>)</label>
+          <div class="inp"><input id="X" type="number" inputmode="decimal" step="any" value="0.0963"><span>Ω/km</span></div></div>
+        <div class="f"><label for="PF">Power factor (PF)</label>
+          <div class="inp"><input id="PF" type="number" inputmode="decimal" step="any" value="0.85"><span>cos φ</span></div>
+          <small>Between 0 and 1</small></div>
+        <div class="f"><label for="L">Cable length (L)</label>
+          <div class="inp"><input id="L" type="number" inputmode="decimal" step="any" value="100"><span>m</span></div>
+          <small>One way, source to load</small></div>
+        <div class="f"><label for="B">Bundle</label>
+          <div class="inp"><input id="B" type="number" inputmode="numeric" step="1" min="1" value="1"><span>per phase</span></div>
+          <small>Parallel conductors per phase (whole number, 1 or more)</small></div>
+        <div class="f"><label for="LIM">Allowed drop</label>
+          <div class="inp"><input id="LIM" type="number" inputmode="decimal" step="any" value="5"><span>%</span></div>
+          <small>Used for the pass / fail check (commonly 3% to 5%)</small></div>
+      </div>
+
+      <button id="go" type="button">Calculate</button>
+      <p class="err" id="err" role="alert"></p>
+    </section>
+
+    <section class="out" aria-live="polite" aria-label="Results">
+      <h2>Results</h2>
+      <div id="res"><p class="empty">Your results will appear here.</p></div>
+    </section>
+  </div>
+
+  <p class="note">The reactive term uses sin φ, calculated from your power factor as φ = arccos(PF), so sin φ = √(1 − PF²). Bundle is the number of parallel conductors per phase, and the drop is divided by it (Bundle 1 gives the single-cable result). Percentage drop is the voltage drop divided by the system voltage. Check results against your local standard and the cable manufacturer’s data.</p>
+</main>
+
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  var ids=["V","I","R","X","PF","L","B","LIM"];
+  /* Thai Yazaki CV-FD 0.6/1 kV, single core. [size mm2, R space/touching/trefoil, XL space/touching/trefoil] in ohm/km */
+  var ROWS=[
+    ["2.5",9.4485,9.4485,9.4485,0.1984,0.1548,0.1403],
+    ["4",5.8782,5.8782,5.8782,0.1881,0.1446,0.1301],
+    ["6",3.9273,3.9273,3.9273,0.1808,0.1372,0.1227],
+    ["10",2.3335,2.3335,2.3335,0.1715,0.1279,0.1134],
+    ["16",1.4664,1.4664,1.4665,0.1660,0.1225,0.1079],
+    ["25",0.9271,0.9271,0.9272,0.1621,0.1185,0.1040],
+    ["35",0.6683,0.6683,0.6684,0.1576,0.1141,0.0995],
+    ["50",0.4937,0.4937,0.4938,0.1544,0.1108,0.0963],
+    ["70",0.3420,0.3421,0.3422,0.1482,0.1046,0.0901],
+    ["95",0.2465,0.2467,0.2468,0.1461,0.1026,0.0881],
+    ["120",0.1956,0.1959,0.1961,0.1441,0.1005,0.0860],
+    ["150",0.1587,0.1591,0.1593,0.1431,0.0995,0.0850],
+    ["185",0.1271,0.1275,0.1279,0.1425,0.0989,0.0844],
+    ["240",0.0972,0.0977,0.0982,0.1409,0.0973,0.0828]
+  ];
+  var sizeSel=$("SZ"), arrSel=$("AR");
+  ROWS.forEach(function(r){var o=document.createElement("option");o.value=r[0];o.textContent=r[0]+" mm²";sizeSel.appendChild(o)});
+  var co=document.createElement("option");co.value="custom";co.textContent="Custom";sizeSel.appendChild(co);
+  function fill(){
+    var s=sizeSel.value;
+    arrSel.disabled=(s==="custom");
+    if(s==="custom")return;
+    var a=parseInt(arrSel.value,10);
+    var r=ROWS.filter(function(x){return x[0]===s})[0];
+    $("R").value=r[1+a]; $("X").value=r[4+a];
+    $("R").parentNode.classList.remove("bad"); $("X").parentNode.classList.remove("bad");
+  }
+  sizeSel.addEventListener("change",fill);
+  arrSel.addEventListener("change",fill);
+  ["R","X"].forEach(function(id){$(id).addEventListener("input",function(){sizeSel.value="custom";arrSel.disabled=true})});
+  sizeSel.value="50"; arrSel.value="2"; fill();
+
+  document.querySelectorAll('input[name="sys"]').forEach(function(r){
+    r.addEventListener("change",function(){
+      var v=$("V");
+      if(v.value==="400"&&r.value==="1"&&r.checked) v.value="230";
+      if(v.value==="230"&&r.value==="3"&&r.checked) v.value="400";
+    });
+  });
+
+  function fmt(n,d){return Number(n).toLocaleString("en-US",{maximumFractionDigits:d,minimumFractionDigits:0})}
+
+  function calc(){
+    var err=$("err"); err.textContent="";
+    var vals={}, bad=[];
+    ids.forEach(function(id){
+      var box=$(id).parentNode; box.classList.remove("bad");
+      var n=parseFloat($(id).value);
+      vals[id]=n;
+      if(!isFinite(n)){bad.push(id);}
+    });
+    var msg="";
+    if(bad.length){msg="Fill in every field with a number."}
+    else if(vals.V<=0||vals.I<0||vals.L<0||vals.R<0||vals.X<0){msg="Voltage must be above 0. Current, length, R and XL can’t be negative.";bad=["V","I","L","R","X"].filter(function(k){return vals[k]<=0&&k==="V"||vals[k]<0})}
+    else if(vals.PF<0||vals.PF>1){msg="Power factor must be between 0 and 1.";bad=["PF"]}
+    else if(vals.B<1||Math.floor(vals.B)!==vals.B){msg="Bundle must be a whole number of 1 or more.";bad=["B"]}
+    if(msg){
+      bad.forEach(function(id){$(id).parentNode.classList.add("bad")});
+      err.textContent=msg; return;
+    }
+    var three=document.querySelector('input[name="sys"]:checked').value==="3";
+    var k=three?1.732:2;
+    var pf=vals.PF, sin=Math.sqrt(1-pf*pf), deg=Math.acos(pf)*180/Math.PI;
+    var vd=k*vals.I*(vals.R*pf+vals.X*sin)*vals.L/1000/vals.B;
+    var pct=vd/vals.V*100;
+    var cls,txt;
+    if(pct<=vals.LIM*0.8){cls="ok";txt="Within the "+fmt(vals.LIM,2)+"% limit."}
+    else if(pct<=vals.LIM){cls="warn";txt="Within the "+fmt(vals.LIM,2)+"% limit, but close."}
+    else{cls="bad";txt="Exceeds the "+fmt(vals.LIM,2)+"% limit. Use a larger conductor or a shorter run."}
+    $("res").innerHTML=
+      '<div class="results">'+
+      '<div class="r"><div class="n">'+fmt(vd,2)+'</div><div class="u">Voltage drop (V)</div></div>'+
+      '<div class="r"><div class="n">'+fmt(pct,2)+'</div><div class="u">Percentage (%)</div></div>'+
+      '<div class="r"><div class="n">'+fmt(vals.I,2)+'</div><div class="u">Current (A)</div></div>'+
+      '<div class="r" style="grid-column:1/-1"><div class="n">'+fmt(vals.L,2)+'</div><div class="u">Length (m)</div></div>'+
+      '</div>'+
+      '<div class="status '+cls+'">'+txt+'</div>'+
+      '<div class="eq">'+(three?"3 phase":"1 phase")+' · φ = '+fmt(deg,2)+'°, sin φ = '+fmt(sin,4)+
+      '<code>Vd = '+k+' × '+fmt(vals.I,3)+' × ('+fmt(vals.R,4)+' × '+fmt(pf,3)+' + '+fmt(vals.X,4)+' × '+fmt(sin,4)+') × '+fmt(vals.L,2)+' / 1000 / '+vals.B+'</code></div>';
+  }
+
+  $("go").addEventListener("click",calc);
+  ids.forEach(function(id){$(id).addEventListener("keydown",function(e){if(e.key==="Enter")calc()})});
+  calc();
+})();
+</script>
+</body>
+</html>
